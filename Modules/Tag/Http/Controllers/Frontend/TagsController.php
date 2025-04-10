@@ -8,6 +8,16 @@ use Illuminate\Support\Str;
 
 class TagsController extends Controller
 {
+    public $module_title;
+
+    public $module_name;
+
+    public $module_path;
+
+    public $module_icon;
+
+    public $module_model;
+
     public function __construct()
     {
         // Page Title
@@ -17,13 +27,13 @@ class TagsController extends Controller
         $this->module_name = 'tags';
 
         // directory path of the module
-        $this->module_path = 'tags';
+        $this->module_path = 'tag::frontend';
 
         // module icon
-        $this->module_icon = 'fas fa-tags';
+        $this->module_icon = 'fa-regular fa-sun';
 
         // module model name, path
-        $this->module_model = "Modules\Tag\Entities\Tag";
+        $this->module_model = "Modules\Tag\Models\Tag";
     }
 
     /**
@@ -42,10 +52,10 @@ class TagsController extends Controller
 
         $module_action = 'List';
 
-        $$module_name = $module_model::latest()->with('posts')->paginate();
+        $$module_name = $module_model::latest()->paginate();
 
         return view(
-            "tag::frontend.$module_path.index",
+            "$module_path.$module_name.index",
             compact('module_title', 'module_name', "$module_name", 'module_icon', 'module_action', 'module_name_singular')
         );
     }
@@ -53,8 +63,7 @@ class TagsController extends Controller
     /**
      * Display the specified resource.
      *
-     * @param int $id
-     *
+     * @param  int  $id
      * @return Response
      */
     public function show($id)
@@ -71,11 +80,10 @@ class TagsController extends Controller
         $module_action = 'Show';
 
         $$module_name_singular = $module_model::findOrFail($id);
-        $posts = $$module_name_singular->posts()->with('category', 'tags', 'comments')->paginate();
 
         return view(
-            "tag::frontend.$module_name.show",
-            compact('module_title', 'module_name', 'module_icon', 'module_action', 'module_name_singular', "$module_name_singular", 'posts')
+            "$module_path.$module_name.show",
+            compact('module_title', 'module_name', 'module_icon', 'module_action', 'module_name_singular', "$module_name_singular")
         );
     }
 }

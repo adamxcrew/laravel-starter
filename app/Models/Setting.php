@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
 
 class Setting extends BaseModel
 {
@@ -11,13 +12,12 @@ class Setting extends BaseModel
     protected $table = 'settings';
 
     /**
-     * Add a settings value.
+     * Adds a key-value pair to the data store.
      *
-     * @param $key
-     * @param $val
-     * @param string $type
-     *
-     * @return bool
+     * @param  mixed  $key  The key to add.
+     * @param  mixed  $val  The value to associate with the key.
+     * @param  string  $type  (optional) The data type of the value. Default is 'string'.
+     * @return mixed The added value if successful, false otherwise.
      */
     public static function add($key, $val, $type = 'string')
     {
@@ -29,12 +29,11 @@ class Setting extends BaseModel
     }
 
     /**
-     * Get a settings value.
+     * Retrieves the value of a setting based on the provided key.
      *
-     * @param $key
-     * @param null $default
-     *
-     * @return bool|int|mixed
+     * @param  string  $key  The key of the setting to retrieve.
+     * @param  mixed  $default  The default value to return if the setting does not exist.
+     * @return mixed The value of the setting.
      */
     public static function get($key, $default = null)
     {
@@ -48,32 +47,31 @@ class Setting extends BaseModel
     }
 
     /**
-     * Set a value for setting.
+     * Updates or adds a setting value in the database.
      *
-     * @param $key
-     * @param $val
-     * @param string $type
-     *
-     * @return bool
+     * @param  string  $key  The name of the setting.
+     * @param  mixed  $val  The value to be set for the setting.
+     * @param  string  $type  The data type of the setting.
+     * @return mixed The updated or added value if successful, false otherwise.
      */
     public static function set($key, $val, $type = 'string')
     {
         if ($setting = self::getAllSettings()->where('name', $key)->first()) {
             return $setting->update([
                 'name' => $key,
-                'val'  => $val,
-                'type' => $type, ]) ? $val : false;
+                'val' => $val,
+                'type' => $type,
+            ]) ? $val : false;
         }
 
         return self::add($key, $val, $type);
     }
 
     /**
-     * Remove a setting.
+     * Removes an item from the collection if it exists.
      *
-     * @param $key
-     *
-     * @return bool
+     * @param  string  $key  the key of the item to be removed
+     * @return bool true if the item was successfully removed, false otherwise
      */
     public static function remove($key)
     {
@@ -85,11 +83,10 @@ class Setting extends BaseModel
     }
 
     /**
-     * Check if setting exists.
+     * Checks if a key exists in the settings.
      *
-     * @param $key
-     *
-     * @return bool
+     * @param  mixed  $key  The key to check.
+     * @return bool Returns true if the key exists, false otherwise.
      */
     public static function has($key)
     {
@@ -97,9 +94,9 @@ class Setting extends BaseModel
     }
 
     /**
-     * Get the validation rules for setting fields.
+     * Retrieves the validation rules for the defined setting fields.
      *
-     * @return array
+     * @return array An array of validation rules, where the keys are the field names and the values are the rules.
      */
     public static function getValidationRules()
     {
@@ -110,106 +107,64 @@ class Setting extends BaseModel
     }
 
     /**
-     * Get the data type of a setting.
+     * Retrieves the data type of a given field.
      *
-     * @param $field
+     * @param  mixed  $field  The name of the field.
+     * @return string The data type of the field. It returns 'string' if the data type is not defined.
      *
-     * @return mixed
+     * @throws None
      */
     public static function getDataType($field)
     {
         $type = self::getDefinedSettingFields()
-                ->pluck('data', 'name')
-                ->get($field);
+            ->pluck('data', 'name')
+            ->get($field);
 
         return is_null($type) ? 'string' : $type;
     }
 
     /**
-     * Get default value for a setting.
+     * Get the default value for a given field.
      *
-     * @param $field
-     *
-     * @return mixed
+     * @param  string  $field  The name of the field.
+     * @return mixed|null The default value of the field, or null if not found.
      */
     public static function getDefaultValueForField($field)
     {
         return self::getDefinedSettingFields()
-                ->pluck('value', 'name')
-                ->get($field);
+            ->pluck('value', 'name')
+            ->get($field);
     }
 
     /**
-     * Get default value from config if no value passed.
+     * Get all settings from the cache or fetch them from the database.
      *
-     * @param $key
-     * @param $default
+     * @return array an array of all the settings.
      *
-     * @return mixed
-     */
-    private static function getDefaultValue($key, $default)
-    {
-        return is_null($default) ? self::getDefaultValueForField($key) : $default;
-    }
-
-    /**
-     * Get all the settings fields from config.
-     *
-     * @return Collection
-     */
-    private static function getDefinedSettingFields()
-    {
-        return collect(config('setting_fields'))->pluck('elements')->flatten(1);
-    }
-
-    /**
-     * caste value into respective type.
-     *
-     * @param $val
-     * @param $castTo
-     *
-     * @return bool|int
-     */
-    private static function castValue($val, $castTo)
-    {
-        switch ($castTo) {
-            case 'int':
-            case 'integer':
-                return intval($val);
-                break;
-
-            case 'bool':
-            case 'boolean':
-                return boolval($val);
-                break;
-
-            default:
-                return $val;
-        }
-    }
-
-    /**
-     * Get all the settings.
-     *
-     * @return mixed
+     * @throws \Exception if there is an error retrieving the settings.
      */
     public static function getAllSettings()
     {
-        return \Cache::rememberForever('settings.all', function () {
+        return Cache::rememberForever('settings.all', function () {
             return self::all();
         });
     }
 
     /**
-     * Flush the cache.
+     * Flushes the cache for the specified key.
+     *
+     * @param  string  $key  The cache key to be flushed.
+     * @return void
+     *
+     * @throws \Exception If an error occurs while flushing the cache.
      */
     public static function flushCache()
     {
-        \Cache::forget('settings.all');
+        Cache::forget('settings.all');
     }
 
     /**
-     * The "booting" method of the model.
+     * Boot the model.
      *
      * @return void
      */
@@ -228,5 +183,52 @@ class Setting extends BaseModel
         static::deleted(function () {
             self::flushCache();
         });
+    }
+
+    /**
+     * Get the default value for a given key.
+     *
+     * @param  mixed  $key  The key to get the default value for.
+     * @param  mixed  $default  The default value to return if the key has no value.
+     * @return mixed The default value or the value of the key.
+     */
+    private static function getDefaultValue($key, $default)
+    {
+        return is_null($default) ? self::getDefaultValueForField($key) : $default;
+    }
+
+    /**
+     * Retrieves the defined setting fields.
+     *
+     * @return Collection The collection of defined setting fields.
+     */
+    private static function getDefinedSettingFields()
+    {
+        return collect(config('setting_fields'))->pluck('elements')->flatten(1);
+    }
+
+    /**
+     * Casts a value to a specified data type.
+     *
+     * @param  mixed  $val  the value to cast
+     * @param  string  $castTo  the data type to cast the value to
+     * @return mixed the casted value
+     */
+    private static function castValue($val, $castTo)
+    {
+        switch ($castTo) {
+            case 'int':
+            case 'integer':
+                return intval($val);
+                break;
+
+            case 'bool':
+            case 'boolean':
+                return boolval($val);
+                break;
+
+            default:
+                return $val;
+        }
     }
 }

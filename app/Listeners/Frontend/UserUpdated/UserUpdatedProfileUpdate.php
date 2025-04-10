@@ -14,13 +14,10 @@ class UserUpdatedProfileUpdate implements ShouldQueue
      */
     public function __construct()
     {
-        //
     }
 
     /**
      * Handle the event.
-     *
-     * @param UserUpdated $event
      *
      * @return void
      */

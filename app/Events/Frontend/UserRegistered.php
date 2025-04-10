@@ -17,9 +17,7 @@ class UserRegistered
     public $user;
 
     /**
-     * Create a new event instance.
-     *
-     * @return void
+     * User Registered Event Construct.
      */
     public function __construct(User $user)
     {

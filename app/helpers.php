@@ -1,12 +1,9 @@
 <?php
 
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
-
 /*
  * Global helpers file with misc functions.
  */
-if (!function_exists('app_name')) {
+if (! function_exists('app_name')) {
     /**
      * Helper to grab the application name.
      *
@@ -21,7 +18,22 @@ if (!function_exists('app_name')) {
 /*
  * Global helpers file with misc functions.
  */
-if (!function_exists('user_registration')) {
+if (! function_exists('app_url')) {
+    /**
+     * Helper to grab the application name.
+     *
+     * @return mixed
+     */
+    function app_url()
+    {
+        return config('app.url');
+    }
+}
+
+/*
+ * Global helpers file with misc functions.
+ */
+if (! function_exists('user_registration')) {
     /**
      * Helper to grab the application name.
      *
@@ -29,9 +41,9 @@ if (!function_exists('user_registration')) {
      */
     function user_registration()
     {
-        $user_registration = false;
+        $user_registration = config('app.user_registration');
 
-        if (env('USER_REGISTRATION') == 'true') {
+        if (env('USER_REGISTRATION') === true) {
             $user_registration = true;
         }
 
@@ -45,8 +57,7 @@ if (!function_exists('user_registration')) {
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('label_case')) {
-
+if (! function_exists('label_case')) {
     /**
      * Prepare the Column Name for Lables.
      */
@@ -57,9 +68,8 @@ if (!function_exists('label_case')) {
 
         $new_text = trim(\Illuminate\Support\Str::title(str_replace('"', '', $text)));
         $new_text = trim(\Illuminate\Support\Str::title(str_replace($order, $replace, $text)));
-        $new_text = preg_replace('!\s+!', ' ', $new_text);
 
-        return $new_text;
+        return preg_replace('!\s+!', ' ', $new_text);
     }
 }
 
@@ -69,38 +79,47 @@ if (!function_exists('label_case')) {
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('show_column_value')) {
+if (! function_exists('show_column_value')) {
     /**
-     * Return Column values as Raw and formatted.
+     * Generates the function comment for the given function.
      *
-     * @param string $valueObject   Model Object
-     * @param string $column        Column Name
-     * @param string $return_format Return Type
-     *
+     * @param  string  $valueObject  Model Object
+     * @param  string  $column  Column Name
+     * @param  string  $return_format  Return Type
+     * @param  mixed  $valueObject  The value object.
+     * @param  mixed  $column  The column.
+     * @param  string  $return_format  The return format. Default is empty string.
      * @return string Raw/Formatted Column Value
+     * @return mixed The column value or formatted value.
      */
     function show_column_value($valueObject, $column, $return_format = '')
     {
-        $column_name = $column->Field;
-        $column_type = $column->Type;
+        $column_name = $column->name;
+        $column_type = $column->type;
 
         $value = $valueObject->$column_name;
 
-        if ($return_format == 'raw') {
+        if (! $value) {
             return $value;
         }
 
-        if (($column_type == 'date') && $value != '') {
+        if ($return_format === 'raw') {
+            return $value;
+        }
+
+        if (($column_type === 'date') && $value !== '') {
             $datetime = \Carbon\Carbon::parse($value);
 
             return $datetime->isoFormat('LL');
-        } elseif (($column_type == 'datetime' || $column_type == 'timestamp') && $value != '') {
+        }
+        if (($column_type === 'datetime' || $column_type === 'timestamp') && $value !== '') {
             $datetime = \Carbon\Carbon::parse($value);
 
             return $datetime->isoFormat('LLLL');
-        } elseif ($column_type == 'json') {
+        }
+        if ($column_type === 'json') {
             $return_text = json_encode($value);
-        } elseif ($column_type != 'json' && \Illuminate\Support\Str::endsWith(strtolower($value), ['png', 'jpg', 'jpeg', 'gif', 'svg'])) {
+        } elseif ($column_type !== 'json' && \Illuminate\Support\Str::endsWith(strtolower($value), ['png', 'jpg', 'jpeg', 'gif', 'svg'])) {
             $img_path = asset($value);
 
             $return_text = '<figure class="figure">
@@ -119,38 +138,35 @@ if (!function_exists('show_column_value')) {
 
 /*
  *
- * fielf_required
+ * field_required
  * Show a * if field is required
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('fielf_required')) {
-
+if (! function_exists('field_required')) {
     /**
      * Prepare the Column Name for Lables.
      */
-    function fielf_required($required)
+    function field_required($required)
     {
         $return_text = '';
 
-        if ($required != '') {
-            $return_text = '<span class="text-danger">*</span>';
+        if ($required !== '') {
+            $return_text = '&nbsp;<span class="text-danger text-red-500">*</span>';
         }
 
         return $return_text;
     }
 }
 
-/*
- * Get or Set the Settings Values
- *
- * @var [type]
+/**
+ * Get or Set the Settings Values.
  */
-if (!function_exists('setting')) {
+if (! function_exists('setting')) {
     function setting($key, $default = null)
     {
         if (is_null($key)) {
-            return new App\Models\Setting();
+            return new App\Models\Setting;
         }
 
         if (is_array($key)) {
@@ -165,18 +181,16 @@ if (!function_exists('setting')) {
 
 /*
  * Show Human readable file size
- *
- * @var [type]
  */
-if (!function_exists('humanFilesize')) {
+if (! function_exists('humanFilesize')) {
     function humanFilesize($size, $precision = 2)
     {
         $units = ['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
         $step = 1024;
         $i = 0;
 
-        while (($size / $step) > 0.9) {
-            $size = $size / $step;
+        while ($size / $step > 0.9) {
+            $size /= $step;
             $i++;
         }
 
@@ -186,45 +200,41 @@ if (!function_exists('humanFilesize')) {
 
 /*
  *
- * Encode Id to a Hashids\Hashids
+ * Encode Id to a Hashids / Sqids
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('encode_id')) {
-
+if (! function_exists('encode_id')) {
     /**
-     * Prepare the Column Name for Lables.
+     * Encode Id to a Hashids / Sqids.
      */
     function encode_id($id)
     {
-        $hashids = new Hashids\Hashids(config('app.salt'), 3, 'abcdefghijklmnopqrstuvwxyz1234567890');
-        $hashid = $hashids->encode($id);
+        $sqids = new Sqids\Sqids(alphabet: 'abcdefghijklmnopqrstuvwxyz123456789');
 
-        return $hashid;
+        return $sqids->encode([$id]);
     }
 }
 
 /*
  *
- * Decode Id to a Hashids\Hashids
+ * Decode Id from Hashids / Sqids
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('decode_id')) {
-
+if (! function_exists('decode_id')) {
     /**
-     * Prepare the Column Name for Lables.
+     * Decode Id from Hashids / Sqids.
      */
     function decode_id($hashid)
     {
-        $hashids = new Hashids\Hashids(config('app.salt'), 3, 'abcdefghijklmnopqrstuvwxyz1234567890');
-        $id = $hashids->decode($hashid);
+        $sqids = new Sqids\Sqids(alphabet: 'abcdefghijklmnopqrstuvwxyz123456789');
+        $id = $sqids->decode($hashid);
 
         if (count($id)) {
             return $id[0];
-        } else {
-            abort(404);
         }
+        abort(404);
     }
 }
 
@@ -235,8 +245,7 @@ if (!function_exists('decode_id')) {
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('slug_format')) {
-
+if (! function_exists('slug_format')) {
     /**
      * Format a string to Slug.
      */
@@ -249,9 +258,7 @@ if (!function_exists('slug_format')) {
         $string = str_replace('\\', '-', $string);
         $string = strtolower($string);
 
-        $slug_string = $string;
-
-        return $slug_string;
+        return substr($string, 0, 190);
     }
 }
 
@@ -259,20 +266,17 @@ if (!function_exists('slug_format')) {
  *
  * icon
  * A short and easy way to show icon fornts
- * Default value will be check icon from FontAwesome
+ * Default value will be check icon from FontAwesome (https://fontawesome.com)
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('icon')) {
-
+if (! function_exists('icon')) {
     /**
      * Format a string to Slug.
      */
-    function icon($string = 'fas fa-check')
+    function icon($string = 'fa-regular fa-circle-check')
     {
-        $return_string = "<i class='".$string."'></i>";
-
-        return $return_string;
+        return "<i class='".$string."'></i>&nbsp;";
     }
 }
 
@@ -284,8 +288,7 @@ if (!function_exists('icon')) {
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('logUserAccess')) {
-
+if (! function_exists('logUserAccess')) {
     /**
      * Format a string to Slug.
      */
@@ -297,7 +300,7 @@ if (!function_exists('logUserAccess')) {
             $auth_text = 'User:'.\Auth::user()->name.' (ID:'.\Auth::user()->id.')';
         }
 
-        \Log::debug(label_case($text)." | $auth_text");
+        \Log::debug(label_case($text)." | {$auth_text}");
     }
 }
 
@@ -308,8 +311,7 @@ if (!function_exists('logUserAccess')) {
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('bn2enNumber')) {
-
+if (! function_exists('bn2enNumber')) {
     /**
      * Prepare the Column Name for Lables.
      */
@@ -318,9 +320,7 @@ if (!function_exists('bn2enNumber')) {
         $search_array = ['১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯', '০'];
         $replace_array = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
-        $en_number = str_replace($search_array, $replace_array, $number);
-
-        return $en_number;
+        return str_replace($search_array, $replace_array, $number);
     }
 }
 
@@ -331,8 +331,7 @@ if (!function_exists('bn2enNumber')) {
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('en2bnNumber')) {
-
+if (! function_exists('en2bnNumber')) {
     /**
      * Prepare the Column Name for Lables.
      */
@@ -341,9 +340,7 @@ if (!function_exists('en2bnNumber')) {
         $search_array = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
         $replace_array = ['১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯', '০'];
 
-        $bn_number = str_replace($search_array, $replace_array, $number);
-
-        return $bn_number;
+        return str_replace($search_array, $replace_array, $number);
     }
 }
 
@@ -354,8 +351,7 @@ if (!function_exists('en2bnNumber')) {
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('en2bnDate')) {
-
+if (! function_exists('en2bnDate')) {
     /**
      * Convert a English number to Bengali.
      */
@@ -384,9 +380,8 @@ if (!function_exists('en2bnDate')) {
         // Convert AM-PM
         $search_array = ['am', 'pm', 'AM', 'PM'];
         $replace_array = ['পূর্বাহ্ন', 'অপরাহ্ন', 'পূর্বাহ্ন', 'অপরাহ্ন'];
-        $bn_date = str_replace($search_array, $replace_array, $bn_date);
 
-        return $bn_date;
+        return str_replace($search_array, $replace_array, $bn_date);
     }
 }
 
@@ -398,18 +393,18 @@ if (!function_exists('en2bnDate')) {
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('banglaDate')) {
+if (! function_exists('banglaDate')) {
     function banglaDate($date_input = '')
     {
-        if ($date_input == '') {
+        if ($date_input === '') {
             $date_input = date('Y-m-d');
         }
 
         $date_input = strtotime($date_input);
 
-        $en_day = date('d', $date_input);
-        $en_month = date('m', $date_input);
-        $en_year = date('Y', $date_input);
+        $en_day = intval(date('j', $date_input));
+        $en_month = intval(date('n', $date_input));
+        $en_year = intval(date('Y', $date_input));
 
         $bn_month_days = [30, 30, 30, 30, 31, 31, 31, 31, 31, 31, 29, 30];
         $bn_month_middate = [13, 12, 14, 13, 14, 14, 15, 15, 15, 16, 14, 14];
@@ -421,7 +416,7 @@ if (!function_exists('banglaDate')) {
             $bn_month = $bn_months[$en_month - 1];
 
             // Leap Year
-            if (($en_year % 400 == 0 || ($en_year % 100 != 0 && $en_year % 4 == 0)) && $en_month == 3) {
+            if (($en_year % 400 === 0 || ($en_year % 100 !== 0 && $en_year % 4 === 0)) && $en_month === 3) {
                 $bn_day += 1;
             }
         } else {
@@ -431,14 +426,13 @@ if (!function_exists('banglaDate')) {
 
         // Year
         $bn_year = $en_year - 593;
-        if (($en_year < 4) || (($en_year == 4) && (($en_day < 14) || ($en_day == 14)))) {
+        if (($en_year < 4) || (($en_year === 4) && (($en_day < 14) || ($en_day === 14)))) {
             $bn_year -= 1;
         }
 
         $return_bn_date = $bn_day.' '.$bn_month.' '.$bn_year;
-        $return_bn_date = en2bnNumber($return_bn_date);
 
-        return $return_bn_date;
+        return en2bnNumber($return_bn_date);
     }
 }
 
@@ -448,8 +442,7 @@ if (!function_exists('banglaDate')) {
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('generate_rgb_code')) {
-
+if (! function_exists('generate_rgb_code')) {
     /**
      * Prepare the Column Name for Lables.
      */
@@ -458,12 +451,11 @@ if (!function_exists('generate_rgb_code')) {
         $str = '';
         for ($i = 1; $i <= 3; $i++) {
             $num = mt_rand(0, 255);
-            $str .= "$num,";
+            $str .= "{$num},";
         }
-        $str .= "$opacity,";
-        $str = substr($str, 0, -1);
+        $str .= "{$opacity},";
 
-        return $str;
+        return substr($str, 0, -1);
     }
 }
 
@@ -473,8 +465,7 @@ if (!function_exists('generate_rgb_code')) {
  *
  * ------------------------------------------------------------------------
  */
-if (!function_exists('date_today')) {
-
+if (! function_exists('date_today')) {
     /**
      * Return Date with weekday.
      *
@@ -485,8 +476,85 @@ if (!function_exists('date_today')) {
      */
     function date_today()
     {
-        $str = \Carbon\Carbon::now()->isoFormat('dddd, LL');
+        return \Carbon\Carbon::now()->isoFormat('dddd, LL');
+    }
+}
 
-        return $str;
+if (! function_exists('language_direction')) {
+    /**
+     * return direction of languages.
+     *
+     * @return string
+     */
+    function language_direction($language = null)
+    {
+        if (empty($language)) {
+            $language = app()->getLocale();
+        }
+        $language = strtolower(substr($language, 0, 2));
+        $rtlLanguages = [
+            'ar', //  'العربية', Arabic
+            'arc', //  'ܐܪܡܝܐ', Aramaic
+            'bcc', //  'بلوچی مکرانی', Southern Balochi
+            'bqi', //  'بختياري', Bakthiari
+            'ckb', //  'Soranî / کوردی', Sorani Kurdish
+            'dv', //  'ދިވެހިބަސް', Dhivehi
+            'fa', //  'فارسی', Persian
+            'glk', //  'گیلکی', Gilaki
+            'he', //  'עברית', Hebrew
+            'lrc', // - 'لوری', Northern Luri
+            'mzn', //  'مازِرونی', Mazanderani
+            'pnb', //  'پنجابی', Western Punjabi
+            'ps', //  'پښتو', Pashto
+            'sd', //  'سنڌي', Sindhi
+            'ug', //  'Uyghurche / ئۇيغۇرچە', Uyghur
+            'ur', //  'اردو', Urdu
+            'yi', //  'ייִדיש', Yiddish
+        ];
+        if (in_array($language, $rtlLanguages)) {
+            return 'rtl';
+        }
+
+        return 'ltr';
+    }
+}
+
+/*
+ * Application Demo Mode check
+ */
+if (! function_exists('demo_mode')) {
+    /**
+     * Helper to grab the application name.
+     *
+     * @return mixed
+     */
+    function demo_mode()
+    {
+        $return_string = false;
+
+        if (env('DEMO_MODE') === true) {
+            $return_string = true;
+        }
+
+        return $return_string;
+    }
+}
+
+/*
+ * Split Name to First Name and Last Name
+ */
+if (! function_exists('split_name')) {
+    /**
+     * Split Name to First Name and Last Name.
+     *
+     * @return mixed
+     */
+    function split_name($name)
+    {
+        $name = trim($name);
+        $last_name = (strpos($name, ' ') === false) ? '' : preg_replace('#.*\s([\w-]*)$#', '$1', $name);
+        $first_name = trim(preg_replace('#'.preg_quote($last_name, '#').'#', '', $name));
+
+        return [$first_name, $last_name];
     }
 }

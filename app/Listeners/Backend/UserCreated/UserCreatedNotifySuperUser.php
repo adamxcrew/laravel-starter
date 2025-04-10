@@ -14,13 +14,10 @@ class UserCreatedNotifySuperUser implements ShouldQueue
      */
     public function __construct()
     {
-        //
     }
 
     /**
      * Handle the event.
-     *
-     * @param UserCreated $event
      *
      * @return void
      */

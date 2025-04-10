@@ -23,16 +23,14 @@ class TagsController extends BackendBaseController
         $this->module_path = 'tag::backend';
 
         // module icon
-        $this->module_icon = 'fas fa-tags';
+        $this->module_icon = 'fa-solid fa-tags';
 
         // module model name, path
-        $this->module_model = "Modules\Tag\Entities\Tag";
+        $this->module_model = "Modules\Tag\Models\Tag";
     }
 
     /**
      * Store a newly created resource in storage.
-     *
-     * @param Request $request
      *
      * @return Response
      */
@@ -47,9 +45,16 @@ class TagsController extends BackendBaseController
 
         $module_action = 'Store';
 
-        $validatedData = $request->validate([
+        $validated_request = $request->validate([
             'name' => 'required|max:191|unique:'.$module_model.',name',
             'slug' => 'nullable|max:191|unique:'.$module_model.',slug',
+            'group_name' => 'nullable|max:191',
+            'description' => 'nullable|max:191',
+            'meta_title' => 'nullable|max:191',
+            'meta_description' => 'nullable',
+            'meta_keyword' => 'nullable',
+            'order' => 'nullable|integer',
+            'status' => 'nullable|max:191',
         ]);
 
         $$module_name_singular = $module_model::create($request->except('image'));
@@ -60,18 +65,17 @@ class TagsController extends BackendBaseController
             $$module_name_singular->save();
         }
 
-        flash(icon().' '.Str::singular($module_title)."' Created.")->success()->important();
+        flash("New '".Str::singular($module_title)."' Added")->success()->important();
 
         logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
-        return redirect("admin/$module_name");
+        return redirect("admin/{$module_name}");
     }
 
     /**
      * Display the specified resource.
      *
-     * @param int $id
-     *
+     * @param  int  $id
      * @return Response
      */
     public function show($id)
@@ -92,17 +96,15 @@ class TagsController extends BackendBaseController
         logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
         return view(
-            "$module_path.$module_name.show",
-            compact('module_title', 'module_name', 'module_icon', 'module_name_singular', 'module_action', "$module_name_singular", 'posts')
+            "{$module_path}.{$module_name}.show",
+            compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_name_singular', 'module_action', "{$module_name_singular}", 'posts')
         );
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param Request $request
-     * @param int     $id
-     *
+     * @param  int  $id
      * @return Response
      */
     public function update(Request $request, $id)
@@ -116,9 +118,16 @@ class TagsController extends BackendBaseController
 
         $module_action = 'Update';
 
-        $validatedData = $request->validate([
+        $validated_request = $request->validate([
             'name' => 'required|max:191|unique:'.$module_model.',name,'.$id,
             'slug' => 'nullable|max:191|unique:'.$module_model.',slug,'.$id,
+            'group_name' => 'nullable|max:191',
+            'description' => 'nullable|max:191',
+            'meta_title' => 'nullable|max:191',
+            'meta_description' => 'nullable',
+            'meta_keyword' => 'nullable',
+            'order' => 'nullable|integer',
+            'status' => 'required|max:191',
         ]);
 
         $$module_name_singular = $module_model::findOrFail($id);
@@ -136,7 +145,7 @@ class TagsController extends BackendBaseController
 
             $$module_name_singular->save();
         }
-        if ($request->image_remove == 'image_remove') {
+        if ($request->image_remove === 'image_remove') {
             if ($$module_name_singular->getMedia($module_name)->first()) {
                 $$module_name_singular->getMedia($module_name)->first()->delete();
 
@@ -146,10 +155,10 @@ class TagsController extends BackendBaseController
             }
         }
 
-        flash(icon().' '.Str::singular($module_title)."' Updated Successfully")->success()->important();
+        flash(Str::singular($module_title)."' Updated Successfully")->success()->important();
 
         logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
-        return redirect()->route('backend.tags.show', $$module_name_singular->id);
+        return redirect()->route("backend.{$module_name}.show", $$module_name_singular->id);
     }
 }

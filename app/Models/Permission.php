@@ -10,9 +10,14 @@ class Permission extends \Spatie\Permission\Models\Permission
     public static function defaultPermissions()
     {
         return [
+            'view_backend',
+            'edit_settings',
+            'view_logs',
+
             'view_users',
             'add_users',
             'edit_users',
+            'edit_users_permissions',
             'delete_users',
             'restore_users',
             'block_users',
@@ -34,7 +39,7 @@ class Permission extends \Spatie\Permission\Models\Permission
     /**
      * Name should be lowercase.
      *
-     * @param string $value Name value
+     * @param  string  $value  Name value
      */
     public function setNameAttribute($value)
     {

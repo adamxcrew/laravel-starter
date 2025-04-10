@@ -2,16 +2,19 @@
 
 namespace App\Models;
 
-use DB;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Notification extends Model
 {
     protected $table = 'notifications';
 
-    protected $dates = [
-        'read_at',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'read_at' => 'datetime',
+        ];
+    }
 
     /**
      * Get the list of all the Columns of the table.
@@ -20,8 +23,6 @@ class Notification extends Model
      */
     public function getTableColumns()
     {
-        $table_info_columns = DB::select(DB::raw('SHOW COLUMNS FROM '.$this->getTable()));
-
-        return $table_info_columns;
+        return DB::select(strval(DB::raw('SHOW COLUMNS FROM '.$this->getTable())));
     }
 }

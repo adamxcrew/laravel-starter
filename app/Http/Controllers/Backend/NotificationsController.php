@@ -4,15 +4,23 @@ namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
-use Auth;
 use Carbon\Carbon;
-use Flash;
-use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Log;
 
 class NotificationsController extends Controller
 {
+    public $module_title;
+
+    public $module_name;
+
+    public $module_path;
+
+    public $module_icon;
+
+    public $module_model;
+
     public function __construct()
     {
         // Page Title
@@ -34,7 +42,7 @@ class NotificationsController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return Response
+     * @return \Illuminate\Contracts\View\View
      */
     public function index()
     {
@@ -53,17 +61,16 @@ class NotificationsController extends Controller
         Log::info(label_case($module_title.' '.$module_action).' | User:'.Auth::user()->name.'(ID:'.Auth::user()->id.')');
 
         return view(
-            "backend.$module_path.index",
-            compact('module_title', 'module_name', "$module_name", 'module_path', 'module_icon', 'module_action', 'module_name_singular', 'unread_notifications_count')
+            "backend.{$module_path}.index",
+            compact('module_title', 'module_name', "{$module_name}", 'module_path', 'module_icon', 'module_action', 'module_name_singular', 'unread_notifications_count')
         );
     }
 
     /**
      * Display the specified resource.
      *
-     * @param int $id
-     *
-     * @return Response
+     * @param  int  $id
+     * @return \Illuminate\Contracts\View\View
      */
     public function show($id)
     {
@@ -79,7 +86,7 @@ class NotificationsController extends Controller
         $$module_name_singular = Notification::where('id', '=', $id)->where('notifiable_id', '=', auth()->user()->id)->first();
 
         if ($$module_name_singular) {
-            if ($$module_name_singular->read_at == '') {
+            if ($$module_name_singular->read_at === '') {
                 $$module_name_singular->read_at = Carbon::now();
                 $$module_name_singular->save();
             }
@@ -91,17 +98,16 @@ class NotificationsController extends Controller
         Log::info(label_case($module_title.' '.$module_action).' | User:'.Auth::user()->name.'(ID:'.Auth::user()->id.')');
 
         return view(
-            "backend.$module_name.show",
-            compact('module_title', 'module_name', 'module_icon', 'module_name_singular', 'module_action', "$module_name_singular")
+            "backend.{$module_name}.show",
+            compact('module_title', 'module_name', 'module_icon', 'module_name_singular', 'module_action', "{$module_name_singular}")
         );
     }
 
     /**
      * Delete All the Notifications.
      *
-     * @param int $id
-     *
-     * @return Response
+     * @param  int  $id
+     * @return \Illuminate\Contracts\View\View
      */
     public function deleteAll()
     {
@@ -110,7 +116,7 @@ class NotificationsController extends Controller
         $module_path = $this->module_path;
         $module_icon = $this->module_icon;
         $module_model = $this->module_model;
-        $module_name_singular = str_singular($module_name);
+        $module_name_singular = Str::singular($module_name);
 
         $module_action = 'Delete All';
 
@@ -118,7 +124,7 @@ class NotificationsController extends Controller
 
         $user->notifications()->delete();
 
-        Flash::success("<i class='fas fa-check'></i> All Notifications Deleted")->important();
+        flash('All Notifications Deleted')->success()->important();
 
         Log::info(label_case($module_title.' '.$module_action).' | User:'.Auth::user()->name.'(ID:'.Auth::user()->id.')');
 
@@ -126,9 +132,9 @@ class NotificationsController extends Controller
     }
 
     /**
-     * Mark All Notifications As Read.
+     * Marks all notifications as read for the authenticated user.
      *
-     * @return [type] [description]
+     * @return Illuminate\Http\RedirectResponse the response to redirect back
      */
     public function markAllAsRead()
     {
@@ -145,7 +151,7 @@ class NotificationsController extends Controller
 
         $user->unreadNotifications()->update(['read_at' => now()]);
 
-        Flash::success("<i class='fas fa-check'></i> All Notifications Marked As Read")->important();
+        flash('All Notifications Marked As Read')->success()->important();
 
         Log::info(label_case($module_title.' '.$module_action).' | User:'.Auth::user()->name.'(ID:'.Auth::user()->id.')');
 
