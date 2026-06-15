@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Traits\HasHashedMediaTrait;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
@@ -19,6 +20,8 @@ class BaseModel extends Model implements HasMedia
     protected $guarded = [
         'id',
         'updated_at',
+        '_token',
+        '_method',
     ];
 
     protected function casts(): array
@@ -27,6 +30,21 @@ class BaseModel extends Model implements HasMedia
             'deleted_at' => 'datetime',
             'published_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Fill the model with an array of attributes.
+     *
+     * @return $this
+     *
+     * @throws MassAssignmentException
+     */
+    public function fill(array $attributes)
+    {
+        unset($attributes['_token']);
+        unset($attributes['_method']);
+
+        return parent::fill($attributes);
     }
 
     /**
@@ -54,32 +72,21 @@ class BaseModel extends Model implements HasMedia
     {
         $table_name = DB::getTablePrefix().$this->getTable();
 
-        switch (config('database.default')) {
-            case 'sqlite':
-                $columns = DB::select("PRAGMA table_info({$table_name});");
-                break;
-            case 'mysql':
-            case 'mariadb':
-                $columns = DB::select('SHOW COLUMNS FROM '.$table_name);
-                $columns = array_map(function ($column) {
-                    return [
-                        'name' => $column->Field,
-                        'type' => $column->Type,
-                        'notnull' => $column->Null,
-                        'key' => $column->Key,
-                        'default' => $column->Default,
-                        'extra' => $column->Extra,
-                    ];
-                }, $columns);
-                break;
-            case 'pgsql':
-                $columns = DB::select("SELECT column_name as `Field`, data_type as `Type` FROM information_schema.columns WHERE table_name = '{$table_name}';");
-                break;
-
-            default:
-                // code...
-                break;
-        }
+        $columns = match (config('database.default')) {
+            'sqlite' => DB::select("PRAGMA table_info({$table_name});"),
+            'mysql', 'mariadb' => array_map(function ($column) {
+                return [
+                    'name' => $column->Field,
+                    'type' => $column->Type,
+                    'notnull' => $column->Null,
+                    'key' => $column->Key,
+                    'default' => $column->Default,
+                    'extra' => $column->Extra,
+                ];
+            }, DB::select('SHOW COLUMNS FROM '.$table_name)),
+            'pgsql' => DB::select("SELECT column_name AS \"Field\", data_type AS \"Type\" FROM information_schema.columns WHERE table_name = '{$table_name}';"),
+            default => null,
+        };
 
         return json_decode(json_encode($columns));
     }
@@ -89,27 +96,12 @@ class BaseModel extends Model implements HasMedia
      */
     public function getStatusLabelAttribute()
     {
-        $return_string = '';
-
-        switch ($this->attributes['status']) {
-            case '0':
-                $return_string = '<span class="badge bg-danger">Inactive</span>';
-                break;
-
-            case '1':
-                $return_string = '<span class="badge bg-success">Active</span>';
-                break;
-
-            case '2':
-                $return_string = '<span class="badge bg-warning text-dark">Pending</span>';
-                break;
-
-            default:
-                $return_string = '<span class="badge bg-primary">Status:'.$this->status.'</span>';
-                break;
-        }
-
-        return $return_string;
+        return match ($this->attributes['status']) {
+            '0' => '<span class="badge bg-danger">Inactive</span>',
+            '1' => '<span class="badge bg-success">Active</span>',
+            '2' => '<span class="badge bg-warning text-dark">Pending</span>',
+            default => '<span class="badge bg-primary">Status:'.$this->status.'</span>',
+        };
     }
 
     /**
@@ -117,35 +109,12 @@ class BaseModel extends Model implements HasMedia
      */
     public function getStatusLabelTextAttribute()
     {
-        $return_string = '';
-
-        switch ($this->attributes['status']) {
-            case '0':
-                $return_string = 'Inactive';
-                break;
-
-            case '1':
-                $return_string = 'Active';
-                break;
-
-            case '2':
-                $return_string = 'Pending';
-                break;
-
-            default:
-                $return_string = $this->status;
-                break;
-        }
-
-        return $return_string;
-    }
-
-    /**
-     *  Set 'Name' attribute value.
-     */
-    public function setNameAttribute($value)
-    {
-        $this->attributes['name'] = trim($value);
+        return match ($this->attributes['status']) {
+            '0' => 'Inactive',
+            '1' => 'Active',
+            '2' => 'Pending',
+            default => $this->status,
+        };
     }
 
     /**
@@ -195,43 +164,7 @@ class BaseModel extends Model implements HasMedia
     }
 
     /**
-     * Set the 'meta title'.
-     * If no value submitted use the 'Title'.
-     *
-     * @param [type]
-     */
-    public function setMetaTitleAttribute($value)
-    {
-        $this->attributes['meta_title'] = $value;
-
-        if (empty($value)) {
-            $this->attributes['meta_title'] = $this->attributes['name'];
-        }
-    }
-
-    /**
-     * Set the meta meta_og_image
-     * If no value submitted use the 'Title'.
-     *
-     * @param [type]
-     */
-    public function setMetaOgImageAttribute($value)
-    {
-        $this->attributes['meta_og_image'] = $value;
-
-        if (empty($value)) {
-            if (isset($this->attributes['image'])) {
-                $this->attributes['meta_og_image'] = $this->attributes['image'];
-            } else {
-                $this->attributes['meta_og_image'] = setting('meta_image');
-            }
-        }
-    }
-
-    /**
      * Scope a query to only include active models.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
      */
     public function scopeActive(Builder $query): void
     {

@@ -2,11 +2,9 @@
 
 namespace App\Models\Presenters;
 
-use App\Models\Permission;
-use App\Models\Role;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Hash;
 
 /**
  * Presenter Class for Book Module.
@@ -28,22 +26,11 @@ trait UserPresenter
      */
     public function getStatusLabelAttribute()
     {
-        $return_string = '';
-        switch ($this->status) {
-            case '1':
-                $return_string = '<span class="badge text-bg-success">Active</span>';
-                break;
-
-            case '2':
-                $return_string = '<span class="badge text-bg-danger">Blocked</span>';
-                break;
-
-            default:
-                $return_string = '<span class="badge text-bg-primary">Status:'.$this->status.'</span>';
-                break;
-        }
-
-        return $return_string;
+        return match ($this->status) {
+            '1' => '<span class="badge text-bg-success">Active</span>',
+            '2' => '<span class="badge text-bg-danger">Blocked</span>',
+            default => '<span class="badge text-bg-primary">Status:'.$this->status.'</span>',
+        };
     }
 
     /**
@@ -65,27 +52,56 @@ trait UserPresenter
      */
     public function getPermissionsAttribute()
     {
-        $permissions = Cache::rememberForever('permissions_cache', function () {
-            return Permission::select('permissions.*', 'model_has_permissions.*')
-                ->join('model_has_permissions', 'permissions.id', '=', 'model_has_permissions.permission_id')
-                ->get();
-        });
+        $lastUpdated = Cache::get('spatie_permissions_last_updated', 'never');
+        $cacheKey = 'permissions_user_'.$this->id.'_'.$lastUpdated;
 
-        return $permissions->where('model_id', $this->id);
+        // Check cache first
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
+
+        // If relation is loaded (via eager loading), cache it and return
+        if ($this->relationLoaded('permissions')) {
+            $permissions = $this->getRelation('permissions');
+            Cache::forever($cacheKey, $permissions);
+
+            return $permissions;
+        }
+
+        // Otherwise, query and cache
+        return Cache::rememberForever($cacheKey, function () {
+            return $this->permissions()->get();
+        });
     }
 
     /**
-     * Cache Roles Query.
+     * Get the user's roles.
+     *
+     * @return Collection
      */
     public function getRolesAttribute()
     {
-        $roles = Cache::rememberForever('roles_cache', function () {
-            return Role::select('roles.*', 'model_has_roles.*')
-                ->join('model_has_roles', 'roles.id', '=', 'model_has_roles.role_id')
-                ->get();
-        });
+        $lastUpdated = Cache::get('spatie_permissions_last_updated', 'never');
+        $cacheKey = 'roles_user_'.$this->id.'_'.$lastUpdated;
 
-        return $roles->where('model_id', $this->id);
+        // Check cache first
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
+
+        // If relation is loaded (via eager loading), cache it and return
+        if ($this->relationLoaded('roles')) {
+            $roles = $this->getRelation('roles');
+            $roles->loadMissing('permissions');
+            Cache::forever($cacheKey, $roles);
+
+            return $roles;
+        }
+
+        // Otherwise, query and cache
+        return Cache::rememberForever($cacheKey, function () {
+            return $this->roles()->with('permissions')->get();
+        });
     }
 
     /**
@@ -106,13 +122,6 @@ trait UserPresenter
         $this->attributes['last_name'] = $name_parts[1];
     }
 
-    public function setPasswordAttribute($value)
-    {
-        if (! empty($value)) {
-            $this->attributes['password'] = Hash::make($value);
-        }
-    }
-
     /**
      * Array keys for social_profiles field.
      */
@@ -126,5 +135,35 @@ trait UserPresenter
             'youtube_url',
             'linkedin_url',
         ];
+    }
+
+    public function getUrlWebsiteAttribute()
+    {
+        return $this->social_profiles['website_url'] ?? null;
+    }
+
+    public function getUrlFacebookAttribute()
+    {
+        return $this->social_profiles['facebook_url'] ?? null;
+    }
+
+    public function getUrlTwitterAttribute()
+    {
+        return $this->social_profiles['twitter_url'] ?? null;
+    }
+
+    public function getUrlInstagramAttribute()
+    {
+        return $this->social_profiles['instagram_url'] ?? null;
+    }
+
+    public function getUrlLinkedinAttribute()
+    {
+        return $this->social_profiles['linkedin_url'] ?? null;
+    }
+
+    public function getUrlYoutubeAttribute()
+    {
+        return $this->social_profiles['youtube_url'] ?? null;
     }
 }

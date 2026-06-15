@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Backend;
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use Carbon\Carbon;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class NotificationsController extends Controller
@@ -36,13 +36,13 @@ class NotificationsController extends Controller
         $this->module_icon = 'c-icon fas fa-bell';
 
         // module model name, path
-        $this->module_model = "App\Models\User";
+        $this->module_model = "App\Models\Notification";
     }
 
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Contracts\View\View
+     * @return View
      */
     public function index()
     {
@@ -55,10 +55,10 @@ class NotificationsController extends Controller
 
         $module_action = 'List';
 
-        $$module_name = auth()->user()->notifications()->paginate();
-        $unread_notifications_count = auth()->user()->unreadNotifications()->count();
+        $$module_name = Auth::user()->notifications()->paginate();
+        $unread_notifications_count = Auth::user()->unreadNotifications()->count();
 
-        Log::info(label_case($module_title.' '.$module_action).' | User:'.Auth::user()->name.'(ID:'.Auth::user()->id.')');
+        logUserAccess($module_title.' '.$module_action);
 
         return view(
             "backend.{$module_path}.index",
@@ -70,7 +70,7 @@ class NotificationsController extends Controller
      * Display the specified resource.
      *
      * @param  int  $id
-     * @return \Illuminate\Contracts\View\View
+     * @return View
      */
     public function show($id)
     {
@@ -83,19 +83,19 @@ class NotificationsController extends Controller
 
         $module_action = 'Show';
 
-        $$module_name_singular = Notification::where('id', '=', $id)->where('notifiable_id', '=', auth()->user()->id)->first();
+        $$module_name_singular = Notification::where('id', '=', $id)->where('notifiable_id', '=', Auth::user()->id)->first();
 
         if ($$module_name_singular) {
-            if ($$module_name_singular->read_at === '') {
+            if ($$module_name_singular->read_at === null) {
                 $$module_name_singular->read_at = Carbon::now();
                 $$module_name_singular->save();
             }
         } else {
-            Log::info(label_case($module_title.' '.$module_action).' | User:'.Auth::user()->name.'(ID:'.Auth::user()->id.')');
+            logUserAccess($module_title.' '.$module_action);
             abort(404);
         }
 
-        Log::info(label_case($module_title.' '.$module_action).' | User:'.Auth::user()->name.'(ID:'.Auth::user()->id.')');
+        logUserAccess($module_title.' '.$module_action);
 
         return view(
             "backend.{$module_name}.show",
@@ -107,7 +107,7 @@ class NotificationsController extends Controller
      * Delete All the Notifications.
      *
      * @param  int  $id
-     * @return \Illuminate\Contracts\View\View
+     * @return View
      */
     public function deleteAll()
     {
@@ -120,13 +120,13 @@ class NotificationsController extends Controller
 
         $module_action = 'Delete All';
 
-        $user = auth()->user();
+        $user = Auth::user();
 
         $user->notifications()->delete();
 
         flash('All Notifications Deleted')->success()->important();
 
-        Log::info(label_case($module_title.' '.$module_action).' | User:'.Auth::user()->name.'(ID:'.Auth::user()->id.')');
+        logUserAccess($module_title.' '.$module_action);
 
         return back();
     }
@@ -147,13 +147,13 @@ class NotificationsController extends Controller
 
         $module_action = 'Mark All As Read';
 
-        $user = auth()->user();
+        $user = Auth::user();
 
         $user->unreadNotifications()->update(['read_at' => now()]);
 
         flash('All Notifications Marked As Read')->success()->important();
 
-        Log::info(label_case($module_title.' '.$module_action).' | User:'.Auth::user()->name.'(ID:'.Auth::user()->id.')');
+        logUserAccess($module_title.' '.$module_action);
 
         return back();
     }

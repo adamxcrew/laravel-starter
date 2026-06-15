@@ -8,9 +8,13 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Laracasts\Flash\Flash;
 
 class RolesController extends Controller
@@ -48,7 +52,7 @@ class RolesController extends Controller
     /**
      * Retrieves all the records from the database and displays them in a paginated list.
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function index()
     {
@@ -61,20 +65,20 @@ class RolesController extends Controller
 
         $module_action = 'List';
 
-        $$module_name = $module_model::with('permissions')->paginate();
+        $$module_name = $module_model::with('permissions')->withCount('users')->paginate();
 
-        Log::info(label_case($module_title.' '.$module_action).' | User:'.auth()->user()->name.'(ID:'.auth()->user()->id.')');
+        logUserAccess($module_title.' '.$module_action);
 
         return view(
-            "backend.{$module_path}.index",
-            compact('module_title', 'module_name', "{$module_name}", 'module_icon', 'module_name_singular', 'module_action')
+            view: "backend.{$module_path}.index",
+            data: compact('module_title', 'module_name', "{$module_name}", 'module_icon', 'module_name_singular', 'module_action')
         );
     }
 
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function create()
     {
@@ -90,15 +94,15 @@ class RolesController extends Controller
         $roles = Role::get();
         $permissions = Permission::select('name', 'id')->orderBy('id')->get();
 
-        Log::info(label_case($module_title.' '.$module_action).' | User:'.auth()->user()->name.'(ID:'.auth()->user()->id.')');
+        logUserAccess($module_title.' '.$module_action);
 
-        return view("backend.{$module_name}.create", compact('module_title', 'module_name', 'module_icon', 'module_action', 'roles', 'permissions'));
+        return view(view: "backend.{$module_name}.create", data: compact('module_title', 'module_name', 'module_icon', 'module_action', 'roles', 'permissions'));
     }
 
     /**
      * Store a newly created resource in storage.
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function store(Request $request)
     {
@@ -126,7 +130,7 @@ class RolesController extends Controller
 
         flash("{$$module_name_singular->name} {$module_name_singular} created successfully!")->success()->important();
 
-        Log::info(label_case($module_title.' '.$module_action).' | User:'.auth()->user()->name.'(ID:'.auth()->user()->id.')');
+        logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
         return redirect("admin/{$module_name}")->with('flash_success', "{$module_name} added!");
     }
@@ -135,8 +139,8 @@ class RolesController extends Controller
      * Display the specified resource.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
-     * @return \Illuminate\View\View
+     * @return Response
+     * @return View
      */
     public function show($id)
     {
@@ -153,11 +157,11 @@ class RolesController extends Controller
 
         $users = User::role($$module_name_singular->name)->get();
 
-        Log::info(label_case($module_title.' '.$module_action).' | User:'.auth()->user()->name.'(ID:'.auth()->user()->id.')');
+        logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
         return view(
-            "backend.{$module_name}.show",
-            compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', "{$module_name_singular}", 'users')
+            view: "backend.{$module_name}.show",
+            data: compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', "{$module_name_singular}", 'users')
         );
     }
 
@@ -165,8 +169,8 @@ class RolesController extends Controller
      * Show the form for editing the specified resource.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
-     * @return \Illuminate\View\View
+     * @return Response
+     * @return View
      */
     public function edit($id)
     {
@@ -183,17 +187,17 @@ class RolesController extends Controller
 
         $$module_name_singular = $module_model::findOrFail($id);
 
-        Log::info(label_case($module_title.' '.$module_action).' | User:'.auth()->user()->name.'(ID:'.auth()->user()->id.')');
+        logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
-        return view("backend.{$module_name}.edit", compact('module_title', 'module_name', "{$module_name_singular}", 'module_name_singular', 'module_icon', 'module_action', 'permissions'));
+        return view(view: "backend.{$module_name}.edit", data: compact('module_title', 'module_name', "{$module_name_singular}", 'module_name_singular', 'module_icon', 'module_action', 'permissions'));
     }
 
     /**
      * Update the specified resource in storage.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
-     * @return \Illuminate\View\View
+     * @return Response
+     * @return View
      */
     public function update(Request $request, $id)
     {
@@ -223,7 +227,10 @@ class RolesController extends Controller
 
         flash(label_case($$module_name_singular->name.' '.$module_name_singular).' updated successfully!')->success()->important();
 
-        Log::info(label_case($module_title.' '.$module_action).' | User:'.auth()->user()->name.'(ID:'.auth()->user()->id.')');
+        logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
+
+        // Update Global Cache Timestamp
+        Cache::put('spatie_permissions_last_updated', now()->timestamp);
 
         return redirect("admin/{$module_name}");
     }
@@ -232,8 +239,8 @@ class RolesController extends Controller
      * Remove the specified resource from storage.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
-     * @return \Illuminate\View\View
+     * @return Response
+     * @return View
      */
     public function destroy($id)
     {
@@ -249,28 +256,26 @@ class RolesController extends Controller
         $$module_name_singular = Role::findOrFail($id);
         $role_name = $$module_name_singular->name;
 
-        $user_roles = auth()->user()->getRoleNames();
+        $user_roles = Auth::user()->getRoleNames();
 
-        $role_users = User::with('roles')->get()->filter(
-            fn ($user) => $user->roles->where('name', $role_name)->toArray()
-        )->count();
+        $role_users = User::role($role_name)->count();
 
         if ($id == 1) {
             Flash::warning("You can not delete {$$module_name_singular->name} role!")->important();
 
-            Log::notice(label_case($module_title.' '.$module_action).' Failed | User:'.auth()->user()->name.'(ID:'.auth()->user()->id.')');
+            logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
             return redirect()->route("backend.{$module_name}.index");
         } elseif (in_array($role_name, $user_roles->toArray())) {
             Flash::warning('You can not delete your Role!')->important();
 
-            Log::notice(label_case($module_title.' '.$module_action).' Failed | User:'.auth()->user()->name.'(ID:'.auth()->user()->id.')');
+            logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
             return redirect()->route("backend.{$module_name}.index");
         } elseif ($role_users) {
             Flash::warning('Can not be deleted! '.$role_users.' user(s) found!')->important();
 
-            Log::notice(label_case($module_title.' '.$module_action).' Failed | User:'.auth()->user()->name.'(ID:'.auth()->user()->id.')');
+            logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
             return redirect()->route("backend.{$module_name}.index");
         }
@@ -279,14 +284,21 @@ class RolesController extends Controller
             if ($$module_name_singular->delete()) {
                 Flash::success('Role successfully deleted!')->important();
 
-                Log::info(label_case($module_title.' '.$module_action).' | User:'.auth()->user()->name.'(ID:'.auth()->user()->id.')');
+                logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
+
+                // Update Global Cache Timestamp
+                Cache::put('spatie_permissions_last_updated', now()->timestamp);
 
                 return redirect()->route("backend.{$module_name}.index");
             }
         } catch (\Exception $e) {
+            logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
+
             Log::error($e);
 
             Log::error('Can not delete role with id '.$id);
         }
+
+        return redirect()->route("backend.{$module_name}.index");
     }
 }

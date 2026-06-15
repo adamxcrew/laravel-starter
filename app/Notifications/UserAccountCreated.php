@@ -38,7 +38,7 @@ class UserAccountCreated extends Notification implements ShouldQueue
      * Get the mail representation of the notification.
      *
      * @param  mixed  $notifiable
-     * @return \Illuminate\Notifications\Messages\MailMessage
+     * @return MailMessage
      */
     public function toMail($notifiable)
     {
@@ -50,8 +50,7 @@ class UserAccountCreated extends Notification implements ShouldQueue
             ->line('A new account has been created for you. Please use the following credentials to login.')
             ->line(__('Username').': '.$user->username)
             ->line(__('Email').': '.$user->email)
-            ->line(__('Password').': '.$request['password'])
             ->line(__('URL').': '.url('/login'))
-            ->action(__('Visit').' '.app_name(), url('/'));
+            ->action(__('Set your password'), url('/forgot-password'));
     }
 }

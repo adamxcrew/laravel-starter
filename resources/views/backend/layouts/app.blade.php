@@ -23,16 +23,22 @@
         @vite(["resources/sass/app-backend.scss", "resources/js/app-backend.js"])
 
         <link href="https://fonts.googleapis.com/css?family=Ubuntu&display=swap" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/css?family=Noto+Sans+Bengali+UI&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css?family=Noto+Sans+Bengali&display=swap" rel="stylesheet" />
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet" />
         <style>
             body {
-                font-family: Ubuntu, 'Noto Sans Bengali UI', Arial, Helvetica, sans-serif;
+                font-family: Ubuntu, Arial, Helvetica, sans-serif;
+            }
+
+            :lang(bn),
+            [lang^="bn"] {
+                font-family: 'Noto Sans Bengali', Arial, Helvetica, sans-serif;
             }
         </style>
 
         @stack("after-styles")
 
-        <x-google-analytics />
+        <x-cube::google-analytics />
 
         @livewireStyles
     </head>
@@ -48,8 +54,8 @@
             {{-- header --}}
             @include("backend.includes.header")
 
-            <div class="body flex-grow-1">
-                <div class="container-lg">
+            <div class="body flex grow">
+                <div class="container-lg px-4 py-2">
                     @include("flash::message")
 
                     <!-- Errors block -->
@@ -63,7 +69,7 @@
             </div>
 
             {{-- Footer block --}}
-            <x-backend.includes.footer />
+            <x-cube::backend-include-footer />
         </div>
 
         <!-- Scripts -->

@@ -1,18 +1,19 @@
 <p align="center"><img src="https://user-images.githubusercontent.com/396987/82162573-6940f500-98c7-11ea-974e-888b4f866c74.jpg" alt="Laravel Starter - A CMS like modular starter project built with the latest Laravel framework."></p>
 
-# Laravel Starter (based on Laravel 12.x)
-**Laravel Starter** is a Laravel 12.x based simple starter project. Most of the commonly needed features of an application like `Authentication`, `Authorisation`, `Users` and `Role management`, `Application Backend`, `Backup`, `Log viewer` are available here. It is modular, so you may use this project as a base and build your own modules. A module can be used in any `Laravel Starter` based project.
+# Laravel Starter (based on Laravel 13.x)
+**Laravel Starter** is a Laravel 13.x based simple starter project. Most of the commonly needed features of an application like `Authentication`, `Authorisation`, `Users` and `Role management`, `Application Backend`, `Backup`, `Log viewer` are available here. It is modular, so you may use this project as a base and build your own modules. A module can be used in any `Laravel Starter` based project.
 Here Frontend and Backend are completely separated with separate routes, controllers, and themes as well.
 
 ***Please let me know your feedback and comments.***
 
-[![Latest Stable Version](http://poser.pugx.org/nasirkhan/laravel-starter/v)](https://packagist.org/packages/nasirkhan/laravel-starter) [![StyleCI Build](https://github.styleci.io/repos/105638882/shield?style=flat)](https://packagist.org/packages/nasirkhan/laravel-starter) [![License](http://poser.pugx.org/nasirkhan/laravel-starter/license)](https://packagist.org/packages/nasirkhan/laravel-starter) [![PHP Version Require](http://poser.pugx.org/nasirkhan/laravel-starter/require/php)](https://packagist.org/packages/nasirkhan/laravel-starter)
+[![Latest Stable Version](https://img.shields.io/packagist/v/nasirkhan/laravel-starter?label=Stable)](https://packagist.org/packages/nasirkhan/laravel-starter) 
+[![Total Downloads](https://img.shields.io/packagist/dt/nasirkhan/laravel-starter.svg?label=Downloads)](https://packagist.org/packages/nasirkhan/laravel-starter)
+[![StyleCI Build](https://github.styleci.io/repos/105638882/shield?style=flat)](https://packagist.org/packages/nasirkhan/laravel-starter) 
+[![License](https://img.shields.io/github/license/nasirkhan/laravel-starter?label=License)](https://packagist.org/packages/nasirkhan/laravel-starter) 
+[![PHP Version Require](http://poser.pugx.org/nasirkhan/laravel-starter/require/php)](https://packagist.org/packages/nasirkhan/laravel-starter)
+[![Nasir Khan Saikat](https://img.shields.io/badge/Powered%20By-Nasir%20Khan%20Saikat-ff2d20.svg)](https://nasirkhn.com)
 
-
-# Reporting a Vulnerability
-If you discover any security-related issues, please send an e-mail to Nasir Khan Saikat via nasir8891@gmail.com instead of using the issue tracker.
-
-# Appplication Demo
+# Application Demo
 Check the following demo project. It is just a straight installation of the project without any modification.
 
 Demo URL: https://laravel.nasirkhn.com
@@ -28,50 +29,52 @@ Pass: secret
 
 ```
 
-## Demo Data
-If you want to test the application on your local machine with additional demo data you may use the following command.
-
-```php
-
-php artisan laravel-starter:insert-demo-data
-
-```
-
-There are options to truncate the `posts, categories, tags, and comments` tables and insert new demo data.
-
-`--fresh` option will truncate the tables, without this command a new set of data will be inserted.
-
-```php
-
-php artisan laravel-starter:insert-demo-data --fresh
-
-```
-
 # Custom Commands
 
 We have created a number of custom commands for the project. The commands are listed below with a brief about their use of it.
 
-## Create New module
+## Install / Setup
 
-To create a project use the following command, you have to replace the MODULE_NAME with the name of the module.
+See the canonical [Installation](#installation) section below for the full setup flow and all supported options for `php artisan starter:install`.
 
-```php
+## Update
+
+After pulling changes from the repository, run:
+
+```bash
+php artisan starter:update
+```
+
+This runs `composer update`, checks for new module migrations, runs outstanding migrations, and clears all caches.
+
+## Create New Module
+
+To create a module use the following command, replacing `MODULE_NAME` with the name of your module.
+
+```bash
 php artisan module:build MODULE_NAME
 ```
 
-You may want to use `--force` option to overwrite the existing module. if you use this option, it will replace all the existing files with the default stub files.
+You may want to use the `--force` option to overwrite an existing module. If you use this option, it will replace all the existing files with the default stub files.
 
-```php
+```bash
 php artisan module:build MODULE_NAME --force
 ```
 
 ## Clear All Cache
 
 ```bash
+php artisan clear-all
+```
+
+or 
+
+```bash
 composer clear-all
 ```
 
-this is a shortcut command to clear all cache including config, route, and more
+This clears application caches including config, route, view, and permission cache.
+If you prefer Composer scripts, `composer clear-all` is also available.
 
 ## Code Style Fix
 
@@ -88,9 +91,15 @@ The following command will format the blade templates.
 npm run format
 ```
 
-or if you are using `yarn` then you can use the following command.
+`npm` is the supported package manager for this project. Avoid mixing `npm` and `yarn` lockfiles on the same checkout, especially on Windows, because native packages such as `esbuild` and Tailwind's platform binaries can fail to resolve or unlink cleanly after a mixed install.
+
+If you are intentionally using `yarn`, remove the existing install state first so Yarn can rebuild it from scratch.
 
 ```bash
+Remove-Item -Recurse -Force node_modules
+Remove-Item -Force yarn.lock
+yarn cache clean
+yarn install
 yarn format
 ```
 
@@ -136,7 +145,7 @@ It is a modular application, and some modules are installed by default. It will 
   * Categories
   * Tags
   * Comments
-  * wysiwyg editor
+  * WYSIWYG editor ([laravel-jodit](https://github.com/nasirkhan/laravel-jodit))
   * File browser
 * Application Settings
 * External Libraries
@@ -147,35 +156,121 @@ It is a modular application, and some modules are installed by default. It will 
   * Datatables
   * Select2
   * Date Time Picker
+  * Jodit WYSIWYG Editor
 * Backup (Source, Files, Database as Zip)
 * Log Viewer
 * Notification
   * Dashboard and details view
 
 
+## Companion Packages
+
+Laravel Starter is built on top of a set of focused, reusable packages that are also available independently for any Laravel application.
+
+| Package | Description |
+|---|---|
+| [nasirkhan/module-manager](https://github.com/nasirkhan/module-manager) | Powerful module management with version tracking, migration management, dependency resolution, and full module lifecycle commands (`module:status`, `module:build`, `module:enable`, etc.) |
+| [nasirkhan/laravel-cube](https://github.com/nasirkhan/laravel-cube) | Versatile collection of reusable UI Blade components (buttons, modals, cards, forms, navigation, and more) with dual Tailwind CSS and Bootstrap 5 support and built-in dark mode |
+| [nasirkhan/laravel-jodit](https://github.com/nasirkhan/laravel-jodit) | Integrates the [Jodit](https://xdsoft.net/jodit/) WYSIWYG editor via a single Blade component (`<x-jodit::editor>`), with Livewire support and a built-in server-side file browser/uploader |
+| [nasirkhan/laravel-sharekit](https://github.com/nasirkhan/laravel-sharekit) | Reusable Blade-powered social sharing buttons with metadata auto-detection, popup sharing, native Web Share API support, copy-link action, and page-scoped asset loading |
+
+
 # User Guide
 
 ## Installation
 
-Follow the steps mentioned below to install and run the project. You may find more details about the installation in [Installation Wiki](https://github.com/nasirkhan/laravel-starter/wiki/Installation).
+This is the single source of truth for installing Laravel Starter from a fresh checkout. You may find more background in the [Installation Wiki](https://github.com/nasirkhan/laravel-starter/wiki/Installation).
 
-1. Open the terminal and run the following command, this will download and install the `Laravel Starter` and run the post-installation commands. 
+### From GitHub Template (recommended)
+
+If you created a new repository from this GitHub template, or cloned it directly:
+
+```bash
+# 1. Install PHP dependencies
+composer install
+
+# 2. Run the interactive setup wizard — handles .env, database, migrations, seeding, and npm assets
+php artisan starter:install
+```
+
+Or as a single shortcut after `composer install`:
+
+```bash
+composer setup
+```
+
+For a true one-liner from a fresh clone, convenience scripts are included:
+
+```bash
+# Linux / macOS
+bash setup.sh
+
+# Windows (PowerShell)
+.\setup.ps1
+```
+
+Both scripts run `composer install` and then launch `php artisan starter:install`.
+Pass any `starter:install` flags through, e.g. `bash setup.sh --demo`.
+
+The setup wizard will guide you through environment configuration, database selection, migrations, seeding, and building frontend assets. When finished it prints the app URL and default login credentials.
+
+**Available options:**
+
+| Option | Description |
+|---|---|
+| `--skip-db` | Skip database setup |
+| `--skip-seed` | Skip database seeding |
+| `--skip-npm` | Skip `npm install` and asset build |
+| `--demo` | Seed with demo data (no prompt) |
+
+If you only need to rerun cache clearing after setup, use:
+
+```bash
+php artisan clear-all
+```
+
+### Via Composer create-project
+
 ```bash
 composer create-project nasirkhan/laravel-starter
 ```
-2. The default database is `sqlite`, if you want to change please update the database settings at `.env` file
-3. To create a link from the storage directory, run the following command from the project root:
-```php
-php artisan storage:link
-```
-4. If you run the `create-project` command from `Laravel Hard` then the site will be available at [http://laravel-starter.test](http://laravel-starter.test). You may create a virtualhost entry to access the application or run `php artisan serve` from the project root and visit `http://127.0.0.1:8000`
 
-*After creating the new permissions use the following commands to update cashed permissions.*
+This runs migrations automatically. Afterwards run the setup wizard to seed and build assets:
+
+```bash
+php artisan starter:install --skip-db
+```
+
+*After creating the new permissions use the following commands to update cached permissions.*
 
 `php artisan cache:forget spatie.permission.cache`
 
+## Database Seeding
+
+Two seeder categories are available:
+
+- **Essential** (always run): users, roles, permissions, menu — `AuthTableSeeder`, `MenuDatabaseSeeder`
+- **Dummy data** (optional): posts, categories, tags — disabled via `SEED_DUMMY_DATA=false` in `.env`
+
+```bash
+# Full seed (essential + dummy data)
+php artisan migrate:fresh --seed
+
+# Essential data only
+php artisan db:seed-essential --fresh
+
+# Add or refresh demo content at any time
+php artisan laravel-starter:insert-demo-data
+php artisan laravel-starter:insert-demo-data --fresh
+```
+
+For production, set `SEED_DUMMY_DATA=false` and use `--force`:
+```bash
+php artisan db:seed-essential --fresh --force
+```
+
 ## Docker and Laravel Sail
-This project is configured with Laravel Sail (https://laravel.com/docs/sail). You can use all the docker functionalities here. To install using docker and sail:
+This project is configured with [Laravel Sail](https://laravel.com/docs/sail). You can use all the docker functionalities here. To install using docker and sail:
 
 1. Clone or download the repository
 2. Go to the project directory and run `composer install`
@@ -185,6 +280,10 @@ This project is configured with Laravel Sail (https://laravel.com/docs/sail). Yo
 6. Run the command `sail artisan migrate --seed`
 7. Link storage directory: `sail artisan storage:link`
 8. Since Sail is already up, you can just visit http://localhost:80
+
+
+# Reporting a Vulnerability
+If you discover any security-related issues, please send an e-mail to Nasir Khan Saikat via nasir8891@gmail.com instead of using the issue tracker.
 
 
 # Screenshots
@@ -214,4 +313,3 @@ __Backend Dashboard__
 ---
 
 ![Edit-Posts-Laravel-Starter](https://github.com/nasirkhan/laravel-starter/assets/396987/6421b8e5-3c69-4c1f-9518-875e72be77c0)
-

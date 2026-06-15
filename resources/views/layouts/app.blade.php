@@ -1,35 +1,21 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace("_", "-", app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ language_direction() }}">
     <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="csrf-token" content="{{ csrf_token() }}" />
-
-        <title>{{ config("app.name", "Laravel") }}</title>
-
-        <!-- Scripts -->
-        @vite(["resources/css/app-frontend.css"])
-        @vite(["resources/js/app-frontend.js"])
+        @include('partials.head')
     </head>
 
-    <body class="font-sans antialiased">
+    <body>
         <x-selected-theme />
-        <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
-            @include("layouts.navigation")
 
-            <!-- Page Heading -->
-            @if (isset($header))
-                <header class="bg-white shadow dark:bg-gray-800">
-                    <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                        {{ $header }}
-                    </div>
-                </header>
-            @endif
+        @include('frontend.includes.header')
 
-            <!-- Page Content -->
-            <main>
-                {{ $slot }}
-            </main>
-        </div>
+        <main class="bg-white dark:bg-gray-800" id="main-content" role="main">
+            {{ $slot }}
+        </main>
+
+        @include('frontend.includes.footer')
+
+        @livewireScripts
+        @stack('after-scripts')
     </body>
 </html>

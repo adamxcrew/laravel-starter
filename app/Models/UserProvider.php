@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * User Provider Model.
  */
 class UserProvider extends Model
 {
+    use HasFactory;
+
     /**
      * The database table used by the model.
      */
@@ -22,7 +26,7 @@ class UserProvider extends Model
     /**
      * Retrieves the associated User model.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function user()
     {

@@ -13,11 +13,19 @@ use App\Models\UserProvider;
 use App\Notifications\UserAccountCreated;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use Yajra\DataTables\DataTables;
 
 class UserController extends Controller
@@ -55,7 +63,7 @@ class UserController extends Controller
     /**
      * Retrieves the index page for the module.
      *
-     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
+     * @return Factory|View
      */
     public function index()
     {
@@ -71,13 +79,13 @@ class UserController extends Controller
         $page_heading = ucfirst($module_title);
         $title = $page_heading.' '.ucfirst($module_action);
 
-        $$module_name = $module_model::paginate();
+        // $$module_name = $module_model::paginate();
 
         logUserAccess($module_title.' '.$module_action);
 
         return view(
-            "{$module_path}.{$module_name}.index",
-            compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', 'page_heading', 'title')
+            view: "{$module_path}.{$module_name}.index",
+            data: compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', 'page_heading', 'title')
         );
     }
 
@@ -96,16 +104,16 @@ class UserController extends Controller
 
         $data = $$module_name;
 
-        return Datatables::of($$module_name)
+        return DataTables::of($$module_name)
             ->addColumn('action', function ($data) {
                 $module_name = $this->module_name;
 
-                return view('backend.includes.user_actions', compact('module_name', 'data'));
+                return view(view: 'backend.includes.user_actions', data: compact('module_name', 'data'));
             })
             ->addColumn('user_roles', function ($data) {
                 $module_name = $this->module_name;
 
-                return view('backend.includes.user_roles', compact('module_name', 'data'));
+                return view(view: 'backend.includes.user_roles', data: compact('module_name', 'data'));
             })
             ->editColumn('name', '<strong>{{$name}}</strong>')
             ->editColumn('status', function ($data) {
@@ -190,14 +198,18 @@ class UserController extends Controller
 
         $module_action = 'Create';
 
-        $roles = Role::get();
-        $permissions = Permission::select('name', 'id')->orderBy('id')->get();
+        $roles = Cache::rememberForever('roles_with_permissions', function () {
+            return Role::with('permissions')->get();
+        });
+        $permissions = Cache::rememberForever('permissions_list', function () {
+            return Permission::select('name', 'id')->orderBy('id')->get();
+        });
 
         logUserAccess($module_title.' '.$module_action);
 
         return view(
-            "{$module_path}.{$module_name}.create",
-            compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', 'roles', 'permissions')
+            view: "{$module_path}.{$module_name}.create",
+            data: compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', 'roles', 'permissions')
         );
     }
 
@@ -231,7 +243,7 @@ class UserController extends Controller
         $data_array['name'] = $request->first_name.' '.$request->last_name;
         $data_array['password'] = $request->password;
 
-        if ($request->confirmed === 1) {
+        if ($request->confirmed == 1) {
             $data_array = Arr::add($data_array, 'email_verified_at', Carbon::now());
         } else {
             $data_array = Arr::add($data_array, 'email_verified_at', null);
@@ -246,6 +258,9 @@ class UserController extends Controller
         // Sync Permissions
         $$module_name_singular->syncPermissions(isset($validated_data['permissions']) ? $validated_data['permissions'] : []);
 
+        // Clear user's permission cache
+        $$module_name_singular->clearPermissionCache();
+
         // Set Username
         $id = $$module_name_singular->id;
         $username = config('app.initial_username') + $id;
@@ -256,7 +271,7 @@ class UserController extends Controller
 
         flash("New '".Str::singular($module_title)."' Created")->success()->important();
 
-        if ($request->email_credentials === 1) {
+        if ($request->email_credentials == 1) {
             $data = [
                 'password' => $request->password,
             ];
@@ -267,7 +282,7 @@ class UserController extends Controller
 
         Artisan::call('cache:clear');
 
-        logUserAccess($module_title.' '.$module_action);
+        logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
         return redirect("admin/{$module_name}");
     }
@@ -289,13 +304,13 @@ class UserController extends Controller
 
         $module_action = 'Show';
 
-        $$module_name_singular = $module_model::findOrFail($id);
+        $$module_name_singular = $module_model::with(['providers', 'roles.permissions', 'permissions'])->findOrFail($id);
 
         logUserAccess(__METHOD__." | {$$module_name_singular->name} ($id)");
 
         return view(
-            "{$module_path}.{$module_name}.show",
-            compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', "{$module_name_singular}")
+            view: "{$module_path}.{$module_name}.show",
+            data: compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', "{$module_name_singular}")
         );
     }
 
@@ -305,7 +320,7 @@ class UserController extends Controller
      * @param  int  $id  The ID of the user whose password will be changed.
      * @return \Illuminate\Contracts\View\View The view for the "Change Password" page.
      *
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException If the user cannot be found.
+     * @throws ModelNotFoundException If the user cannot be found.
      */
     public function changePassword($id)
     {
@@ -321,8 +336,8 @@ class UserController extends Controller
         $page_heading = label_case($module_title);
         $title = $page_heading.' '.label_case($module_action);
 
-        if (! auth()->user()->can('edit_users')) {
-            $id = auth()->user()->id;
+        if (! Auth::user()->can('edit_users')) {
+            $id = Auth::user()->id;
         }
 
         $$module_name_singular = $module_model::findOrFail($id);
@@ -330,8 +345,8 @@ class UserController extends Controller
         logUserAccess("{$module_title} {$module_action} {$$module_name_singular->name} ($id)");
 
         return view(
-            "{$module_path}.{$module_name}.changePassword",
-            compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', "{$module_name_singular}")
+            view: "{$module_path}.{$module_name}.changePassword",
+            data: compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', "{$module_name_singular}")
         );
     }
 
@@ -342,8 +357,8 @@ class UserController extends Controller
      * @param  int  $id  The ID of the user whose password is being updated.
      * @return \Illuminate\Http\RedirectResponse The response object redirecting to the admin module.
      *
-     * @throws \Illuminate\Validation\ValidationException If the validation fails.
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException If the user with the given ID is not found.
+     * @throws ValidationException If the validation fails.
+     * @throws ModelNotFoundException If the user with the given ID is not found.
      */
     public function changePasswordUpdate(Request $request, $id)
     {
@@ -360,18 +375,17 @@ class UserController extends Controller
             'password' => 'required|confirmed|min:6',
         ]);
 
-        if (! auth()->user()->can('edit_users')) {
-            $id = auth()->user()->id;
+        if (! Auth::user()->can('edit_users')) {
+            $id = Auth::user()->id;
         }
 
         $$module_name_singular = User::findOrFail($id);
 
         $request_data = $request->only('password');
-        $request_data['password'] = $request_data['password'];
 
         $$module_name_singular->update($request_data);
 
-        flash(Str::singular($module_title)."' Updated Successfully")->success()->important();
+        flash(Str::singular($module_title).' Updated Successfully')->success()->important();
 
         logUserAccess("{$module_title} {$module_action} {$$module_name_singular->name} ($id)");
 
@@ -382,14 +396,14 @@ class UserController extends Controller
      * Edit a record in the database.
      *
      * @param  int  $id  The ID of the record to be edited.
-     * @return \Illuminate\View\View The view for editing the record.
+     * @return View The view for editing the record.
      *
-     * @throws \Illuminate\Auth\Access\AuthorizationException If the user does not have the permission to edit users.
+     * @throws AuthorizationException If the user does not have the permission to edit users.
      */
     public function edit($id)
     {
-        if (! auth()->user()->can('edit_users')) {
-            $id = auth()->user()->id;
+        if (! Auth::user()->can('edit_users')) {
+            $id = Auth::user()->id;
         }
 
         $module_title = $this->module_title;
@@ -406,14 +420,18 @@ class UserController extends Controller
         $userRoles = $$module_name_singular->roles->pluck('name')->all();
         $userPermissions = $$module_name_singular->permissions->pluck('name')->all();
 
-        $roles = Role::get();
-        $permissions = Permission::select('name', 'id')->orderBy('id')->get();
+        $roles = Cache::rememberForever('roles_with_permissions', function () {
+            return Role::with('permissions')->get();
+        });
+        $permissions = Cache::rememberForever('permissions_list', function () {
+            return Permission::select('name', 'id')->orderBy('id')->get();
+        });
 
         logUserAccess("{$module_title} {$module_action} {$$module_name_singular->name} ($id)");
 
         return view(
-            "{$module_path}.{$module_name}.edit",
-            compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', "{$module_name_singular}", 'roles', 'permissions', 'userRoles', 'userPermissions')
+            view: "{$module_path}.{$module_name}.edit",
+            data: compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', "{$module_name_singular}", 'roles', 'permissions', 'userRoles', 'userPermissions')
         );
     }
 
@@ -428,8 +446,8 @@ class UserController extends Controller
      */
     public function update(Request $request, $id)
     {
-        if (! auth()->user()->can('edit_users')) {
-            $id = auth()->user()->id;
+        if (! Auth::user()->can('edit_users')) {
+            $id = Auth::user()->id;
         }
 
         $module_title = $this->module_title;
@@ -455,13 +473,13 @@ class UserController extends Controller
 
         $$module_name_singular->update(Arr::except($validated_data, ['roles', 'permissions']));
 
-        if ($id === 1) {
-            $user->syncRoles(['super admin']);
+        if ((int) $id === 1) {
+            $$module_name_singular->syncRoles(['super admin']);
 
             // Clear Cache
             Artisan::call('cache:clear');
 
-            flash(Str::singular($module_title)."' Updated Successfully")->success()->important();
+            flash(Str::singular($module_title).' Updated Successfully')->success()->important();
 
             return redirect("admin/{$module_name}");
         }
@@ -475,12 +493,15 @@ class UserController extends Controller
         // Sync Permissions
         $$module_name_singular->syncPermissions((isset($validated_data['permissions'])) ? $validated_data['permissions'] : []);
 
+        // Clear user's permission cache
+        $$module_name_singular->clearPermissionCache();
+
         // Clear Cache
         Artisan::call('cache:clear');
 
         event(new UserUpdated($$module_name_singular));
 
-        flash(Str::singular($module_title)."' Updated Successfully")->success()->important();
+        flash(Str::singular($module_title).' Updated Successfully')->success()->important();
 
         logUserAccess("{$module_title} {$module_action} {$$module_name_singular->name} ($id)");
 
@@ -506,16 +527,16 @@ class UserController extends Controller
 
         $module_action = 'destroy';
 
-        if (auth()->user()->id === $id || $id === 1) {
+        if (Auth::user()->id == $id || $id == 1) {
             flash('You can not delete this user!')->warning()->important();
 
-            logUserAccess("{$module_title} {$module_action} Failed! {$$module_name_singular->name} ($id)");
+            logUserAccess("{$module_title} {$module_action} Failed! (id: $id)");
 
             return redirect()->back();
         }
 
-        if (! auth()->user()->can('edit_users')) {
-            $id = auth()->user()->id;
+        if (! Auth::user()->can('edit_users')) {
+            abort(403);
         }
 
         $$module_name_singular = $module_model::findOrFail($id);
@@ -534,7 +555,7 @@ class UserController extends Controller
     /**
      * Retrieves and displays a list of deleted records for the specified module.
      *
-     * @return \Illuminate\View\View the view for the list of deleted records
+     * @return View the view for the list of deleted records
      */
     public function trashed()
     {
@@ -554,8 +575,8 @@ class UserController extends Controller
         logUserAccess("{$module_title} {$module_action}");
 
         return view(
-            "{$module_path}.{$module_name}.trash",
-            compact('module_title', 'module_name', 'module_path', "{$module_name}", 'module_icon', 'module_name_singular', 'module_action')
+            view: "{$module_path}.{$module_name}.trash",
+            data: compact('module_title', 'module_name', 'module_path', "{$module_name}", 'module_icon', 'module_name_singular', 'module_action')
         );
     }
 
@@ -567,7 +588,7 @@ class UserController extends Controller
      */
     public function restore($id)
     {
-        if (! auth()->user()->can('restore_users')) {
+        if (! Auth::user()->can('restore_users')) {
             abort(403);
         }
 
@@ -580,7 +601,7 @@ class UserController extends Controller
 
         $module_action = 'Restore';
 
-        $$module_name_singular = $module_model::withTrashed()->find($id);
+        $$module_name_singular = $module_model::withTrashed()->findOrFail($id);
 
         $$module_name_singular->restore();
 
@@ -603,7 +624,7 @@ class UserController extends Controller
      */
     public function block($id)
     {
-        if (! auth()->user()->can('delete_users')) {
+        if (! Auth::user()->can('block_users')) {
             abort(403);
         }
 
@@ -616,15 +637,15 @@ class UserController extends Controller
 
         $module_action = 'Block';
 
-        if (auth()->user()->id == $id || $id == 1) {
+        if (Auth::user()->id == $id || $id == 1) {
             flash("You can not 'Block' this user!")->success()->important();
 
-            Log::notice(label_case($module_title.' '.$module_action).' Failed | User:'.auth()->user()->name.'(ID:'.auth()->user()->id.')');
+            Log::notice(label_case($module_title.' '.$module_action).' Failed | User:'.Auth::user()->name.'(ID:'.Auth::user()->id.')');
 
             return redirect()->back();
         }
 
-        $$module_name_singular = User::withTrashed()->find($id);
+        $$module_name_singular = User::withTrashed()->findOrFail($id);
 
         $$module_name_singular->status = 2;
         $$module_name_singular->save();
@@ -648,7 +669,7 @@ class UserController extends Controller
      */
     public function unblock($id)
     {
-        if (! auth()->user()->can('delete_users')) {
+        if (! Auth::user()->can('block_users')) {
             abort(403);
         }
 
@@ -661,15 +682,15 @@ class UserController extends Controller
 
         $module_action = 'Unblock';
 
-        if (auth()->user()->id == $id || $id == 1) {
+        if (Auth::user()->id == $id || $id == 1) {
             flash("You can not 'Unblock' this user!")->warning()->important();
 
-            Log::notice(label_case($module_title.' '.$module_action).' Failed | User:'.auth()->user()->name.'(ID:'.auth()->user()->id.')');
+            Log::notice(label_case($module_title.' '.$module_action).' Failed | User:'.Auth::user()->name.'(ID:'.Auth::user()->id.')');
 
             return redirect()->back();
         }
 
-        $$module_name_singular = User::withTrashed()->find($id);
+        $$module_name_singular = User::withTrashed()->findOrFail($id);
 
         $$module_name_singular->status = 1;
         $$module_name_singular->save();
@@ -693,6 +714,10 @@ class UserController extends Controller
      */
     public function userProviderDestroy(Request $request)
     {
+        if (! Auth::user()->can('edit_users')) {
+            abort(403);
+        }
+
         $module_title = $this->module_title;
         $module_name = $this->module_name;
         $module_path = $this->module_path;
@@ -703,7 +728,7 @@ class UserController extends Controller
         $user_provider_id = $request->user_provider_id;
         $user_id = $request->user_id;
 
-        if (! $user_provider_id > 0 || ! $user_id > 0) {
+        if (! ($user_provider_id > 0) || ! ($user_id > 0)) {
             flash('Invalid Request. Please try again.')->error()->important();
 
             return redirect()->back();
@@ -719,8 +744,6 @@ class UserController extends Controller
         }
         flash('Request rejected. Please contact the Administrator!')->warning()->important();
 
-        event(new UserUpdated($$module_name_singular));
-
         throw new Exception('There was a problem updating this user. Please try again.');
     }
 
@@ -730,7 +753,7 @@ class UserController extends Controller
      * @param  int  $id  The ID of the user.
      * @return \Illuminate\Http\RedirectResponse Returns a redirect response.
      *
-     * @throws \Illuminate\Http\Client\RequestException If the user is not authorized to resend the email confirmation.
+     * @throws RequestException If the user is not authorized to resend the email confirmation.
      */
     public function emailConfirmationResend($id)
     {
@@ -743,19 +766,9 @@ class UserController extends Controller
 
         $module_action = 'Email Confirmation Resend';
 
-        if (! auth()->user()->can('edit_users')) {
-            $id = auth()->user()->id;
+        if (! Auth::user()->can('edit_users')) {
+            $id = Auth::user()->id;
         }
-
-        // if ($id !== auth()->user()->id) {
-        //     if (auth()->user()->hasAnyRole(['administrator', 'super admin'])) {
-        //         Log::info(auth()->user()->name.' ('.auth()->user()->id.') - User Requested for Email Verification.');
-        //     } else {
-        //         Log::warning(auth()->user()->name.' ('.auth()->user()->id.') - User trying to confirm another users email.');
-
-        //         abort('403');
-        //     }
-        // }
 
         $user = User::where('id', '=', $id)->first();
 
@@ -770,6 +783,7 @@ class UserController extends Controller
 
                 return redirect()->back();
             }
+
             Log::info($user->name.' ('.$user->id.') - User Requested but Email already verified at.'.$user->email_verified_at);
 
             flash($user->name.', You already confirmed your email address at '.$user->email_verified_at->isoFormat('LL'))->success()->important();

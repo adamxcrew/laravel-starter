@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Backend;
 use App\Authorizable;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Yajra\DataTables\DataTables;
 
@@ -43,18 +46,28 @@ class BackendBaseController extends Controller
     }
 
     /**
-     * Display a listing of the resource.
+     * Returns the common module context variables used across every action.
      *
-     * @return \Illuminate\Contracts\View\View
+     * @return array{module_title: string, module_name: string, module_path: string, module_icon: string, module_model: string, module_name_singular: string}
      */
-    public function index()
+    protected function moduleContext(): array
     {
-        $module_title = $this->module_title;
-        $module_name = $this->module_name;
-        $module_path = $this->module_path;
-        $module_icon = $this->module_icon;
-        $module_model = $this->module_model;
-        $module_name_singular = Str::singular($module_name);
+        return [
+            'module_title' => $this->module_title,
+            'module_name' => $this->module_name,
+            'module_path' => $this->module_path,
+            'module_icon' => $this->module_icon,
+            'module_model' => $this->module_model,
+            'module_name_singular' => Str::singular($this->module_name),
+        ];
+    }
+
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(): View
+    {
+        extract($this->moduleContext());
 
         $module_action = 'List';
 
@@ -63,8 +76,8 @@ class BackendBaseController extends Controller
         logUserAccess($module_title.' '.$module_action);
 
         return view(
-            "{$module_path}.{$module_name}.index_datatable",
-            compact('module_title', 'module_name', "{$module_name}", 'module_icon', 'module_name_singular', 'module_action')
+            view: "{$module_path}.{$module_name}.index_datatable",
+            data: compact('module_title', 'module_name', "{$module_name}", 'module_icon', 'module_name_singular', 'module_action')
         );
     }
 
@@ -74,14 +87,9 @@ class BackendBaseController extends Controller
      * @param  Request  $request  The HTTP request object.
      * @return JsonResponse The JSON response containing the list of items.
      */
-    public function index_list(Request $request)
+    public function index_list(Request $request): JsonResponse
     {
-        $module_title = $this->module_title;
-        $module_name = $this->module_name;
-        $module_path = $this->module_path;
-        $module_icon = $this->module_icon;
-        $module_model = $this->module_model;
-        $module_name_singular = Str::singular($module_name);
+        extract($this->moduleContext());
 
         $module_action = 'List';
 
@@ -102,6 +110,8 @@ class BackendBaseController extends Controller
             ];
         }
 
+        logUserAccess($module_title.' '.$module_action);
+
         return response()->json($$module_name);
     }
 
@@ -110,14 +120,9 @@ class BackendBaseController extends Controller
      *
      * @return Illuminate\Http\JsonResponse
      */
-    public function index_data()
+    public function index_data(): JsonResponse
     {
-        $module_title = $this->module_title;
-        $module_name = $this->module_name;
-        $module_path = $this->module_path;
-        $module_icon = $this->module_icon;
-        $module_model = $this->module_model;
-        $module_name_singular = Str::singular($module_name);
+        extract($this->moduleContext());
 
         $module_action = 'List';
 
@@ -128,11 +133,11 @@ class BackendBaseController extends Controller
 
         $data = $$module_name;
 
-        return Datatables::of($$module_name)
+        return DataTables::of($$module_name)
             ->addColumn('action', function ($data) {
                 $module_name = $this->module_name;
 
-                return view('backend.includes.action_column', compact('module_name', 'data'));
+                return view(view: 'backend.includes.action_column', data: compact('module_name', 'data'));
             })
             ->editColumn('name', '<strong>{{$name}}</strong>')
             ->editColumn('updated_at', function ($data) {
@@ -153,25 +158,18 @@ class BackendBaseController extends Controller
 
     /**
      * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Contracts\View\View
      */
-    public function create()
+    public function create(): View
     {
-        $module_title = $this->module_title;
-        $module_name = $this->module_name;
-        $module_path = $this->module_path;
-        $module_icon = $this->module_icon;
-        $module_model = $this->module_model;
-        $module_name_singular = Str::singular($module_name);
+        extract($this->moduleContext());
 
         $module_action = 'Create';
 
         logUserAccess($module_title.' '.$module_action);
 
         return view(
-            "{$module_path}.{$module_name}.create",
-            compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_name_singular', 'module_action')
+            view: "{$module_path}.{$module_name}.create",
+            data: compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_name_singular', 'module_action')
         );
     }
 
@@ -183,18 +181,15 @@ class BackendBaseController extends Controller
      *
      * @throws Exception If there is an error during the creation of the resource.
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        $module_title = $this->module_title;
-        $module_name = $this->module_name;
-        $module_path = $this->module_path;
-        $module_icon = $this->module_icon;
-        $module_model = $this->module_model;
-        $module_name_singular = Str::singular($module_name);
+        extract($this->moduleContext());
 
         $module_action = 'Store';
 
-        $$module_name_singular = $module_model::create($request->all());
+        $$module_name_singular = DB::transaction(function () use ($module_model, $request) {
+            return $module_model::create($request->all());
+        });
 
         flash("New '".Str::singular($module_title)."' Added")->success()->important();
 
@@ -207,16 +202,10 @@ class BackendBaseController extends Controller
      * Display the specified resource.
      *
      * @param  int  $id
-     * @return \Illuminate\Contracts\View\View
      */
-    public function show($id)
+    public function show($id): View
     {
-        $module_title = $this->module_title;
-        $module_name = $this->module_name;
-        $module_path = $this->module_path;
-        $module_icon = $this->module_icon;
-        $module_model = $this->module_model;
-        $module_name_singular = Str::singular($module_name);
+        extract($this->moduleContext());
 
         $module_action = 'Show';
 
@@ -225,8 +214,8 @@ class BackendBaseController extends Controller
         logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
         return view(
-            "{$module_path}.{$module_name}.show",
-            compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_name_singular', 'module_action', "{$module_name_singular}")
+            view: "{$module_path}.{$module_name}.show",
+            data: compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_name_singular', 'module_action', "{$module_name_singular}")
         );
     }
 
@@ -234,17 +223,10 @@ class BackendBaseController extends Controller
      * Show the form for editing the specified resource.
      *
      * @param  int  $id
-     * @return Response
-     * @return \Illuminate\Contracts\View\View
      */
-    public function edit($id)
+    public function edit($id): View
     {
-        $module_title = $this->module_title;
-        $module_name = $this->module_name;
-        $module_path = $this->module_path;
-        $module_icon = $this->module_icon;
-        $module_model = $this->module_model;
-        $module_name_singular = Str::singular($module_name);
+        extract($this->moduleContext());
 
         $module_action = 'Edit';
 
@@ -253,8 +235,8 @@ class BackendBaseController extends Controller
         logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
         return view(
-            "{$module_path}.{$module_name}.edit",
-            compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', "{$module_name_singular}")
+            view: "{$module_path}.{$module_name}.edit",
+            data: compact('module_title', 'module_name', 'module_path', 'module_icon', 'module_action', 'module_name_singular', "{$module_name_singular}")
         );
     }
 
@@ -264,25 +246,21 @@ class BackendBaseController extends Controller
      * @param  int  $id
      * @param  Request  $request  The request object.
      * @param  mixed  $id  The ID of the resource to update.
-     * @return Response
-     * @return RedirectResponse The redirect response.
      *
      * @throws ModelNotFoundException If the resource is not found.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $id): RedirectResponse
     {
-        $module_title = $this->module_title;
-        $module_name = $this->module_name;
-        $module_path = $this->module_path;
-        $module_icon = $this->module_icon;
-        $module_model = $this->module_model;
-        $module_name_singular = Str::singular($module_name);
+        extract($this->moduleContext());
 
         $module_action = 'Update';
 
-        $$module_name_singular = $module_model::findOrFail($id);
+        $$module_name_singular = DB::transaction(function () use ($module_model, $request, $id) {
+            $record = $module_model::findOrFail($id);
+            $record->update($request->all());
 
-        $$module_name_singular->update($request->all());
+            return $record;
+        });
 
         flash(Str::singular($module_title)."' Updated Successfully")->success()->important();
 
@@ -296,25 +274,21 @@ class BackendBaseController extends Controller
      *
      * @param  int  $id
      * @param  int  $id  The ID of the record to be destroyed.
-     * @return Response
-     * @return \Illuminate\Http\RedirectResponse Redirects the user to the specified URL.
      *
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException If the record is not found.
      */
-    public function destroy($id)
+    public function destroy($id): RedirectResponse
     {
-        $module_title = $this->module_title;
-        $module_name = $this->module_name;
-        $module_path = $this->module_path;
-        $module_icon = $this->module_icon;
-        $module_model = $this->module_model;
-        $module_name_singular = Str::singular($module_name);
+        extract($this->moduleContext());
 
         $module_action = 'destroy';
 
-        $$module_name_singular = $module_model::findOrFail($id);
+        $$module_name_singular = DB::transaction(function () use ($module_model, $id) {
+            $record = $module_model::findOrFail($id);
+            $record->delete();
 
-        $$module_name_singular->delete();
+            return $record;
+        });
 
         flash(label_case($module_name_singular).' Deleted Successfully!')->success()->important();
 
@@ -326,17 +300,10 @@ class BackendBaseController extends Controller
     /**
      * List of trashed ertries
      * works if the softdelete is enabled.
-     *
-     * @return \Illuminate\Contracts\View\View
      */
-    public function trashed()
+    public function trashed(): View
     {
-        $module_title = $this->module_title;
-        $module_name = $this->module_name;
-        $module_path = $this->module_path;
-        $module_icon = $this->module_icon;
-        $module_model = $this->module_model;
-        $module_name_singular = Str::singular($module_name);
+        extract($this->moduleContext());
 
         $module_action = 'Trash List';
 
@@ -345,8 +312,8 @@ class BackendBaseController extends Controller
         logUserAccess($module_title.' '.$module_action);
 
         return view(
-            "{$module_path}.{$module_name}.trash",
-            compact('module_title', 'module_name', 'module_path', "{$module_name}", 'module_icon', 'module_name_singular', 'module_action')
+            view: "{$module_path}.{$module_name}.trash",
+            data: compact('module_title', 'module_name', 'module_path', "{$module_name}", 'module_icon', 'module_name_singular', 'module_action')
         );
     }
 
@@ -356,26 +323,23 @@ class BackendBaseController extends Controller
      * @param  Request  $request
      * @param  int  $id
      * @param  int  $id  The ID of the data entry to be restored.
-     * @return Response
-     * @return \Illuminate\Http\RedirectResponse The response redirecting to the admin page of the module.
      *
      * @throws \Exception If the data entry cannot be found or restored.
      */
-    public function restore($id)
+    public function restore($id): RedirectResponse
     {
-        $module_title = $this->module_title;
-        $module_name = $this->module_name;
-        $module_path = $this->module_path;
-        $module_icon = $this->module_icon;
-        $module_model = $this->module_model;
-        $module_name_singular = Str::singular($module_name);
+        extract($this->moduleContext());
 
         $module_action = 'Restore';
 
-        $$module_name_singular = $module_model::withTrashed()->find($id);
-        $$module_name_singular->restore();
+        $$module_name_singular = DB::transaction(function () use ($module_model, $id) {
+            $record = $module_model::withTrashed()->findOrFail($id);
+            $record->restore();
 
-        flash(label_case($module_name_singular).' Data Restoreded Successfully!')->success()->important();
+            return $record;
+        });
+
+        flash(label_case($module_name_singular).' Data Restored Successfully!')->success()->important();
 
         logUserAccess($module_title.' '.$module_action.' | Id: '.$$module_name_singular->id);
 
